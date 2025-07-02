@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>TommyMe - חיפוש וסינון מוצרים</title>
+  <style>
+    body {
+      font-family: Arial;
+      direction: rtl;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    .filters, .search-box {
+      max-width: 700px;
+      margin: 0 auto 20px;
+    }
+    .filters select {
+      padding: 8px;
+      margin: 5px;
+      font-size: 14px;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+    #results {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 700px;
+      margin: auto;
+    }
+    .result-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .result-item:hover {
+      background-color: #f0f0f0;
+    }
+    .result-item img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="filters">
+    <label>קטגוריה:
+      <select id="categoryFilter">
+        <option value="">הצג הכל</option>
+      </select>
+    </label>
+    <label>מחיר:
+      <select id="priceFilter">
+        <option value="">כל המחירים</option>
+        <option value="0-50">עד 50 ₪</option>
+        <option value="51-100">51–100 ₪</option>
+        <option value="101-9999">מעל 100 ₪</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="חפש מוצר...">
+  </div>
+
+  <div id="results"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      fetch('https://chatgpt-share-files.s3.amazonaws.com/5d5fdc14-4e4a-4fa6-b1e7-0b1deaf1bb64/products.json')
+        .then(response => response.json())
+        .then(data => {
+          const items = data.filter(item => item["Line Type"] === "Product");
+          const formattedItems = items.map(item => ({
+            title: item.Name,
+            description: item.Summary || "",
+            image: (item.Media || "").split(",")[0] || "",
+            url: "/" + item.Slug,
+            price: parseFloat(item["Retail Price"]) || 0,
+            category: item["Product Type"] || "אחר"
+          }));
+
+          const fuse = new Fuse(formattedItems, {
+            keys: ["title", "description"],
+            threshold: 0.4
+          });
+
+          const categoryFilter = document.getElementById("categoryFilter");
+          const priceFilter = document.getElementById("priceFilter");
+          const input = document.getElementById("searchInput");
+          const resultsContainer = document.getElementById("results");
+
+          const categories = [...new Set(formattedItems.map(item => item.category))];
+          categories.sort().forEach(cat => {
+            const opt = document.createElement("option");
+            opt.value = cat;
+            opt.textContent = cat;
+            categoryFilter.appendChild(opt);
+          });
+
+          function renderResults(results) {
+            resultsContainer.innerHTML = "";
+            if (results.length === 0) {
+              resultsContainer.innerHTML = "<div>לא נמצאו תוצאות.</div>";
+              return;
+            }
+
+            results.forEach(result => {
+              const item = result.item || result;
+              const div = document.createElement("div");
+              div.className = "result-item";
+              div.innerHTML = `
+                <img src="${item.image}" alt="${item.title}">
+                <div>
+                  <strong>${item.title}</strong><br>
+                  <small>${item.description}</small><br>
+                  <small><strong>${item.price} ₪</strong></small>
+                </div>
+              `;
+              div.onclick = () => window.location.href = item.url;
+              resultsContainer.appendChild(div);
+            });
+          }
+
+          function applyFilters() {
+            let results = fuse.search(input.value.trim() || "");
+            results = input.value.trim() ? results : formattedItems.map(i => ({ item: i }));
+
+            const catVal = categoryFilter.value;
+            const priceVal = priceFilter.value;
+            results = results.filter(r => {
+              const item = r.item || r;
+              const passCat = !catVal || item.category === catVal;
+              const passPrice = !priceVal || (
+                item.price >= parseInt(priceVal.split("-")[0]) &&
+                item.price <= parseInt(priceVal.split("-")[1])
+              );
+              return passCat && passPrice;
+            });
+
+            renderResults(results);
+          }
+
+          input.addEventListener("input", applyFilters);
+          categoryFilter.addEventListener("change", applyFilters);
+          priceFilter.addEventListener("change", applyFilters);
+
+          renderResults(formattedItems);
+        });
+    });
+  </script>
+</body>
+</html>
