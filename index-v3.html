@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>TommyMe - חיפוש לפי קטגוריה</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      direction: rtl;
+      background-color: #111;
+      color: #fff;
+      padding: 20px;
+      margin: 0;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+    }
+    .search-box, .category-box {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .category-button {
+      background-color: transparent;
+      border: 2px solid gold;
+      color: gold;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .category-button.active, .category-button:hover {
+      background-color: gold;
+      color: #111;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 14px;
+      border-radius: 25px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    #results {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .result-item {
+      display: flex;
+      gap: 15px;
+      background-color: #222;
+      border: 1px solid #333;
+      padding: 10px;
+      border-radius: 12px;
+      align-items: center;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .result-item:hover {
+      background-color: #2c2c2c;
+    }
+    .result-item img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #444;
+    }
+    .result-details {
+      flex: 1;
+    }
+    .result-details strong {
+      color: gold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="חפש מוצר...">
+    </div>
+    <div class="category-box">
+      <button class="category-button active" data-category="">הצג הכל</button>
+      <button class="category-button" data-category="רקמה">רקמה</button>
+      <button class="category-button" data-category="בלונים">בלונים</button>
+      <button class="category-button" data-category="מארזים">מארזים</button>
+      <button class="category-button" data-category="אירועים">אירועים</button>
+    </div>
+    <div id="results"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      fetch('https://chatgpt-share-files.s3.amazonaws.com/5d5fdc14-4e4a-4fa6-b1e7-0b1deaf1bb64/products.json')
+        .then(response => response.json())
+        .then(data => {
+          const items = data.filter(item => item["Line Type"] === "Product");
+          const formattedItems = items.map(item => ({
+            title: item.Name,
+            description: item.Summary || "",
+            image: (item.Media || "").split(",")[0] || "",
+            url: "/" + item.Slug,
+            category: item["Product Type"] || "אחר"
+          }));
+
+          const fuse = new Fuse(formattedItems, {
+            keys: ["title", "description"],
+            threshold: 0.4
+          });
+
+          const input = document.getElementById("searchInput");
+          const resultsContainer = document.getElementById("results");
+          const categoryButtons = document.querySelectorAll(".category-button");
+
+          let currentCategory = "";
+
+          categoryButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+              categoryButtons.forEach(b => b.classList.remove("active"));
+              btn.classList.add("active");
+              currentCategory = btn.dataset.category;
+              applyFilters();
+            });
+          });
+
+          input.addEventListener("input", applyFilters);
+
+          function applyFilters() {
+            let results = input.value.trim() 
+              ? fuse.search(input.value.trim()).map(r => r.item) 
+              : formattedItems;
+
+            if (currentCategory) {
+              results = results.filter(item => item.category === currentCategory);
+            }
+
+            renderResults(results);
+          }
+
+          function renderResults(results) {
+            resultsContainer.innerHTML = "";
+            if (results.length === 0) {
+              resultsContainer.innerHTML = "<div>לא נמצאו תוצאות.</div>";
+              return;
+            }
+
+            results.forEach(item => {
+              const div = document.createElement("div");
+              div.className = "result-item";
+              div.innerHTML = `
+                <img src="${item.image}" alt="${item.title}">
+                <div class="result-details">
+                  <strong>${item.title}</strong><br>
+                  <small>${item.description}</small>
+                </div>
+              `;
+              div.onclick = () => window.location.href = item.url;
+              resultsContainer.appendChild(div);
+            });
+          }
+
+          renderResults(formattedItems);
+        });
+    });
+  </script>
+</body>
+</html>
