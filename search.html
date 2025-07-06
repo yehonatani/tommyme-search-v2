@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>TommyMe - חיפוש</title>
+  <style>
+    body {
+      font-family: Arial;
+      direction: rtl;
+      padding: 40px 20px;
+      background: #f9f9f9;
+    }
+    .search-box {
+      max-width: 700px;
+      margin: 0 auto 20px;
+      display: flex;
+      gap: 10px;
+    }
+    #searchInput {
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    #searchButton {
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      background: #333;
+      color: #fff;
+      cursor: pointer;
+    }
+    #searchButton:hover {
+      background: #111;
+    }
+    #results {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 700px;
+      margin: auto;
+    }
+    .result-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .result-item:hover {
+      background-color: #f0f0f0;
+    }
+    .result-item img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="מה אתה מחפש? למשל: רקמה, מארז, בלונים">
+    <button id="searchButton">חפש</button>
+  </div>
+  <div id="results"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      fetch('https://chatgpt-share-files.s3.amazonaws.com/5d5fdc14-4e4a-4fa6-b1e7-0b1deaf1bb64/products.json')
+        .then(response => response.json())
+        .then(data => {
+          const items = data.filter(item => item["Line Type"] === "Product");
+          const formattedItems = items.map(item => ({
+            title: item.Name,
+            description: item.Summary || "",
+            image: (item.Media || "").split(",")[0] || "",
+            url: "/" + item.Slug
+          }));
+
+          const fuse = new Fuse(formattedItems, {
+            keys: ["title", "description"],
+            threshold: 0.4
+          });
+
+          const input = document.getElementById("searchInput");
+          const button = document.getElementById("searchButton");
+          const resultsContainer = document.getElementById("results");
+
+          function renderResults(results) {
+            resultsContainer.innerHTML = "";
+            if (results.length === 0) {
+              resultsContainer.innerHTML = "<div>לא נמצאו תוצאות.</div>";
+              return;
+            }
+
+            results.forEach(result => {
+              const item = result.item || result;
+              const div = document.createElement("div");
+              div.className = "result-item";
+              div.innerHTML = `
+                <img src="${item.image}" alt="${item.title}">
+                <div>
+                  <strong>${item.title}</strong><br>
+                  <small>${item.description}</small>
+                </div>
+              `;
+              div.onclick = () => window.location.href = item.url;
+              resultsContainer.appendChild(div);
+            });
+          }
+
+          function performSearch() {
+            const term = input.value.trim();
+            if (!term) return;
+            const results = fuse.search(term);
+            renderResults(results);
+          }
+
+          button.addEventListener("click", performSearch);
+          input.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+              performSearch();
+            }
+          });
+        });
+    });
+  </script>
+</body>
+</html>
