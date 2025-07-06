@@ -1,33 +1,40 @@
-
 <!DOCTYPE html>
 <html lang="he">
 <head>
   <meta charset="UTF-8">
-  <title>TommyMe - חיפוש וסינון מוצרים</title>
+  <title>TommyMe - חיפוש</title>
   <style>
     body {
       font-family: Arial;
       direction: rtl;
-      padding: 20px;
+      padding: 40px 20px;
       background: #f9f9f9;
     }
-    .filters, .search-box {
+    .search-box {
       max-width: 700px;
       margin: 0 auto 20px;
-    }
-    .filters select {
-      padding: 8px;
-      margin: 5px;
-      font-size: 14px;
+      display: flex;
+      gap: 10px;
     }
     #searchInput {
-      width: 100%;
+      flex: 1;
       padding: 12px;
       font-size: 16px;
       border-radius: 10px;
       border: 1px solid #ccc;
       box-sizing: border-box;
-      margin-bottom: 10px;
+    }
+    #searchButton {
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      background: #333;
+      color: #fff;
+      cursor: pointer;
+    }
+    #searchButton:hover {
+      background: #111;
     }
     #results {
       display: flex;
@@ -59,26 +66,10 @@
   </style>
 </head>
 <body>
-  <div class="filters">
-    <label>קטגוריה:
-      <select id="categoryFilter">
-        <option value="">הצג הכל</option>
-      </select>
-    </label>
-    <label>מחיר:
-      <select id="priceFilter">
-        <option value="">כל המחירים</option>
-        <option value="0-50">עד 50 ₪</option>
-        <option value="51-100">51–100 ₪</option>
-        <option value="101-9999">מעל 100 ₪</option>
-      </select>
-    </label>
-  </div>
-
   <div class="search-box">
-    <input type="text" id="searchInput" placeholder="חפש מוצר...">
+    <input type="text" id="searchInput" placeholder="מה אתה מחפש? למשל: רקמה, מארז, בלונים">
+    <button id="searchButton">חפש</button>
   </div>
-
   <div id="results"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
@@ -92,9 +83,7 @@
             title: item.Name,
             description: item.Summary || "",
             image: (item.Media || "").split(",")[0] || "",
-            url: "/" + item.Slug,
-            price: parseFloat(item["Retail Price"]) || 0,
-            category: item["Product Type"] || "אחר"
+            url: "/" + item.Slug
           }));
 
           const fuse = new Fuse(formattedItems, {
@@ -102,18 +91,9 @@
             threshold: 0.4
           });
 
-          const categoryFilter = document.getElementById("categoryFilter");
-          const priceFilter = document.getElementById("priceFilter");
           const input = document.getElementById("searchInput");
+          const button = document.getElementById("searchButton");
           const resultsContainer = document.getElementById("results");
-
-          const categories = [...new Set(formattedItems.map(item => item.category))];
-          categories.sort().forEach(cat => {
-            const opt = document.createElement("option");
-            opt.value = cat;
-            opt.textContent = cat;
-            categoryFilter.appendChild(opt);
-          });
 
           function renderResults(results) {
             resultsContainer.innerHTML = "";
@@ -130,8 +110,7 @@
                 <img src="${item.image}" alt="${item.title}">
                 <div>
                   <strong>${item.title}</strong><br>
-                  <small>${item.description}</small><br>
-                  <small><strong>${item.price} ₪</strong></small>
+                  <small>${item.description}</small>
                 </div>
               `;
               div.onclick = () => window.location.href = item.url;
@@ -139,30 +118,19 @@
             });
           }
 
-          function applyFilters() {
-            let results = fuse.search(input.value.trim() || "");
-            results = input.value.trim() ? results : formattedItems.map(i => ({ item: i }));
-
-            const catVal = categoryFilter.value;
-            const priceVal = priceFilter.value;
-            results = results.filter(r => {
-              const item = r.item || r;
-              const passCat = !catVal || item.category === catVal;
-              const passPrice = !priceVal || (
-                item.price >= parseInt(priceVal.split("-")[0]) &&
-                item.price <= parseInt(priceVal.split("-")[1])
-              );
-              return passCat && passPrice;
-            });
-
+          function performSearch() {
+            const term = input.value.trim();
+            if (!term) return;
+            const results = fuse.search(term);
             renderResults(results);
           }
 
-          input.addEventListener("input", applyFilters);
-          categoryFilter.addEventListener("change", applyFilters);
-          priceFilter.addEventListener("change", applyFilters);
-
-          renderResults(formattedItems);
+          button.addEventListener("click", performSearch);
+          input.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+              performSearch();
+            }
+          });
         });
     });
   </script>
